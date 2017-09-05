@@ -998,11 +998,11 @@ class d_max_size(Disruptor):
             prev_data.add_info('orig node length: {:d}'.format(orig_len))
             
             if self.sz >= 0:
-                node.set_values([val[:min(self.sz, orig_len)]])
+                self.truncate_right(node)
                 prev_data.add_info('right truncation')
             else:
                 self.sz = - self.sz
-                node.set_values([val[orig_len - min(self.sz, orig_len):]])
+                self.truncate_left(node)
                 prev_data.add_info('left truncation')
 
             prev_data.add_info('new node length: {:d}'.format(min(self.sz, orig_len)))
@@ -1029,6 +1029,48 @@ class d_max_size(Disruptor):
 
         return ret
 
+    def truncate_right(self, prev_content):
+        """
+        Recursively truncate a node without modifying its structure by
+        truncating its last terminal nodes until the root node's size is below
+        the maximum size.
+        """
+
+        total_len = 0
+        for (name, node) in prev_content.iter_paths():
+            if node.is_term():
+                val = node.to_bytes()
+                orig_len = len(val)
+                total_len += orig_len
+                overflow = total_len - self.sz
+                if overflow > 0:
+                    new_len = max(0, orig_len - overflow)
+                    # Shrink the node's data.
+                    new_val = val[:new_len]
+                    node.set_values([new_val])
+                    # Update total length with new length.
+                    total_len += (new_len - orig_len)
+
+    def truncate_left(self, prev_content):
+        """
+        Recursively truncate a node without modifying its structure by
+        truncating its first terminal nodes until the root node's size is below
+        the maximum size.
+        """
+
+        total_len = len(prev_content.to_bytes())
+        for (name, node) in prev_content.iter_paths():
+            if node.is_term():
+                val = node.to_bytes()
+                orig_len = len(val)
+                overflow = total_len - self.sz
+                if overflow > 0:
+                    new_len = max(0, orig_len - overflow)
+                    # Shrink the node's data.
+                    new_val = val[orig_len - new_len:]
+                    node.set_values([new_val])
+                    # Update total length with new length.
+                    total_len += (new_len - orig_len)
 
 
 @disruptor(tactics, dtype="C", weight=4,
