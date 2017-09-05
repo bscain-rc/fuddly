@@ -42,7 +42,11 @@ app_folder = '.' if app_folder == '' else app_folder
 projects_folder = app_folder + os.sep + 'projects' + os.sep
 data_models_folder = app_folder + os.sep + 'data_models' + os.sep
 
-fuddly_data_folder = os.path.expanduser('~' + os.sep + 'fuddly_data' + os.sep)
+if 'FUDDLY_DATA' in os.environ:
+    fuddly_data_folder = os.environ['FUDDLY_DATA']
+else:
+    fuddly_data_folder = os.path.expanduser('~' + os.sep + 'fuddly_data' + os.sep)
+
 if not os.path.exists(fuddly_data_folder):
     new_fuddly_data_folder = True
 ensure_dir(fuddly_data_folder)
