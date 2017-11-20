@@ -70,9 +70,9 @@ class Layer2NetworkTarget(Target):
                  mac_dst = None,
                  transport_type = UDP_TYPE,
                  interface = 'eth0',
+                 mtu = 1500,
                  data_semantics=UNKNOWN_SEMANTIC ):
         """
-        TODO UPDATE THE PORT LIST
         Args:
           targetIP (str): IP address of destination field in the IP header.
           sourceIP (str): IP address of the source field in the IP header.
@@ -83,6 +83,7 @@ class Layer2NetworkTarget(Target):
           transport_type (str): A string that determines what type of transportation protocol is
             utilized.  Possible list options are "UDP" and "TCP".
           interface (str): The network interface to send the traffic through.
+          mtu (int):  The Maximum Transfer unit for the network (default 1500).
         """
 
         Target.__init__(self)
@@ -99,6 +100,7 @@ class Layer2NetworkTarget(Target):
         self._target_info['SourceMAC' ] = mac_src
         self._target_info['Transport' ] = transport_type
         self._target_info['Interface' ] = interface
+        self._target_info['MTU'] = mtu
         
         self.targetInfo = {}
         self.targetInfo[data_semantics] = self._target_info
@@ -302,9 +304,9 @@ class Layer2NetworkTarget(Target):
 
     def send_data(self, data, from_fmk=False):
         assert data is not None
+      
         self._before_sending_data(data, from_fmk)
         target = self._get_net_info_from(data)
-
         s = self._get_scapy_data(target, data)
 
         if s is None:
@@ -425,6 +427,12 @@ class Layer2NetworkTarget(Target):
         dataPkt = Raw(load=data.to_bytes() if isinstance(data, Data) else data)
         
         pkt = ethPkt / ipPkt / udpPkt / dataPkt
+        if(len(pkt) > target['MTU']):
+            print("\n*** WARNING: Data packet length is %s while mtu is %s" % (str(len(pkt)), str(target['MTU'])))
+            strip = target['MTU'] - len(pkt)
+            pkt['Raw'].load = pkt['Raw'].load[:strip]
+            print("Pkt strip = " + str(strip))
+        
         return pkt
         
     def _connect_to_target(self, host, port, socket_type):
